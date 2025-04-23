@@ -27,7 +27,7 @@ class AuthGate extends StatelessWidget {
           );
         }
 
-        return MyHomePage(title: 'Firebase Auth Demo');
+        return MyApp();
       },
     );
   }
