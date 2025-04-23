@@ -1,17 +1,53 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-class SignupScreen extends StatelessWidget {
+class SignupScreen extends StatefulWidget {
   const SignupScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    final TextEditingController nameController = TextEditingController();
-    final TextEditingController emailController = TextEditingController();
-    final TextEditingController passwordController = TextEditingController();
-    String? selectedRole;
+  _SignupScreenState createState() => _SignupScreenState();
+}
 
+class _SignupScreenState extends State<SignupScreen> {
+  final FirebaseAuth auth = FirebaseAuth.instance;
+  final FirebaseFirestore firestore = FirebaseFirestore.instance;
+
+  final TextEditingController nameController = TextEditingController();
+  final TextEditingController emailController = TextEditingController();
+  final TextEditingController passwordController = TextEditingController();
+  String? selectedRole;
+
+  Future<void> signUp() async {
+    try {
+      UserCredential userCredential = await auth.createUserWithEmailAndPassword(
+        email: emailController.text.trim(),
+        password: passwordController.text.trim(),
+      );
+
+      String uid = userCredential.user!.uid;
+
+      await firestore.collection('users').doc(uid).set({
+        'name': nameController.text.trim(),
+        'email': emailController.text.trim(),
+        'password': passwordController.text.trim(),
+        'role': selectedRole,
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Sign up successful!')),
+      );
+      Navigator.pop(context);
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Sign up failed: $e')),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return Scaffold(
       body: Center(
         child: Column(
@@ -67,7 +103,7 @@ class SignupScreen extends StatelessWidget {
                     const SizedBox(height: 20),
                     TextField(
                       controller: passwordController,
-                      obscureText: false,
+                      obscureText: true,
                       decoration: InputDecoration(
                         labelText: 'Password',
                         border: OutlineInputBorder(
@@ -98,22 +134,19 @@ class SignupScreen extends StatelessWidget {
                         ),
                       ],
                       onChanged: (value) {
-                        selectedRole = value;
+                        setState(() {
+                          selectedRole = value;
+                        });
                       },
                     ),
                     const SizedBox(height: 20),
                     ElevatedButton(
-                      onPressed: () async {
-                        if (nameController.text.isNotEmpty && selectedRole != null) {
-                          await FirebaseFirestore.instance.collection('users').add({
-                            'name': nameController.text,
-                            'email': emailController.text,
-                            'password': passwordController.text,
-                            'role': selectedRole,
-                          });
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Sign up successful!')),
-                          );
+                      onPressed: () {
+                        if (nameController.text.isNotEmpty &&
+                            emailController.text.isNotEmpty &&
+                            passwordController.text.isNotEmpty &&
+                            selectedRole != null) {
+                          signUp();
                         } else {
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(content: Text('Please fill all fields.')),
@@ -133,8 +166,9 @@ class SignupScreen extends StatelessWidget {
                       child: const Text(
                         'Sign Up',
                         style: TextStyle(
-                          fontSize: 16, 
-                          color: Colors.black),
+                          fontSize: 16,
+                          color: Colors.black,
+                        ),
                       ),
                     ),
                   ],
