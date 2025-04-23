@@ -1,47 +1,34 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'signup.dart';
 
-class SignupScreen extends StatefulWidget {
-  const SignupScreen({super.key});
+class LoginScreen extends StatefulWidget {
+  const LoginScreen({super.key});
 
   @override
-  _SignupScreenState createState() => _SignupScreenState();
+  _LoginScreenState createState() => _LoginScreenState();
 }
 
-class _SignupScreenState extends State<SignupScreen> {
+class _LoginScreenState extends State<LoginScreen> {
   final FirebaseAuth auth = FirebaseAuth.instance;
-  final FirebaseFirestore firestore = FirebaseFirestore.instance;
 
-  final TextEditingController nameController = TextEditingController();
   final TextEditingController emailController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
-  String? selectedRole;
 
-  Future<void> signUp() async {
+  Future<void> login() async {
     try {
-      UserCredential userCredential = await auth.createUserWithEmailAndPassword(
+      await auth.signInWithEmailAndPassword(
         email: emailController.text.trim(),
         password: passwordController.text.trim(),
       );
 
-      String uid = userCredential.user!.uid;
-
-      await firestore.collection('users').doc(uid).set({
-        'name': nameController.text.trim(),
-        'email': emailController.text.trim(),
-        'password': passwordController.text.trim(),
-        'role': selectedRole,
-      });
-
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Sign up successful!')),
+        const SnackBar(content: Text('Login successful!')),
       );
-      Navigator.pop(context);
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Sign up failed: $e')),
+        SnackBar(content: Text('Login failed: $e')),
       );
     }
   }
@@ -77,18 +64,6 @@ class _SignupScreenState extends State<SignupScreen> {
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       TextField(
-                        controller: nameController,
-                        decoration: InputDecoration(
-                          labelText: 'Name',
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          filled: true,
-                          fillColor: Colors.white,
-                        ),
-                      ),
-                      const SizedBox(height: 20),
-                      TextField(
                         controller: emailController,
                         decoration: InputDecoration(
                           labelText: 'Email',
@@ -113,39 +88,11 @@ class _SignupScreenState extends State<SignupScreen> {
                         ),
                       ),
                       const SizedBox(height: 20),
-                      DropdownButtonFormField<String>(
-                        decoration: InputDecoration(
-                          labelText: 'Role',
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          filled: true,
-                          fillColor: Colors.white,
-                        ),
-                        items: const [
-                          DropdownMenuItem(
-                            value: 'Artist',
-                            child: Text('Artist'),
-                          ),
-                          DropdownMenuItem(
-                            value: 'Buyer',
-                            child: Text('Buyer'),
-                          ),
-                        ],
-                        onChanged: (value) {
-                          setState(() {
-                            selectedRole = value;
-                          });
-                        },
-                      ),
-                      const SizedBox(height: 20),
                       ElevatedButton(
                         onPressed: () {
-                          if (nameController.text.isNotEmpty &&
-                              emailController.text.isNotEmpty &&
-                              passwordController.text.isNotEmpty &&
-                              selectedRole != null) {
-                            signUp();
+                          if (emailController.text.isNotEmpty &&
+                              passwordController.text.isNotEmpty) {
+                            login();
                           } else {
                             ScaffoldMessenger.of(context).showSnackBar(
                               const SnackBar(content: Text('Please fill all fields.')),
@@ -163,10 +110,24 @@ class _SignupScreenState extends State<SignupScreen> {
                           ),
                         ),
                         child: const Text(
-                          'Sign Up',
+                          'Login',
                           style: TextStyle(
                             fontSize: 16,
                             color: Colors.black,
+                          ),
+                        ),
+                      ),
+                      TextButton(
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (context) => const SignupScreen()),
+                          );
+                        },
+                        child: const Text(
+                          "No Account?",
+                          style: TextStyle(
+                            color: Colors.blue,
                           ),
                         ),
                       ),
