@@ -33,6 +33,9 @@ class _SignupScreenState extends State<SignupScreen> {
         'email': emailController.text.trim(),
         'password': passwordController.text.trim(),
         'role': selectedRole,
+        'balance': 0,
+        'total_sales': 0,
+        'total_purchases': 0
       });
 
       ScaffoldMessenger.of(context).showSnackBar(
@@ -42,7 +45,6 @@ class _SignupScreenState extends State<SignupScreen> {
         context,
         MaterialPageRoute(builder: (context) => const LoginScreen()),
       );
-      Navigator.pop(context);
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Sign up failed: $e')),

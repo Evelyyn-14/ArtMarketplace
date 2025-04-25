@@ -1,6 +1,8 @@
+import 'package:art_marketplace/screens/artistdashboard.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'signup.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -12,19 +14,38 @@ class LoginScreen extends StatefulWidget {
 
 class _LoginScreenState extends State<LoginScreen> {
   final FirebaseAuth auth = FirebaseAuth.instance;
+  final FirebaseFirestore firestore = FirebaseFirestore.instance;
 
   final TextEditingController emailController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
 
   Future<void> login() async {
     try {
-      await auth.signInWithEmailAndPassword(
+      UserCredential userCredential = await auth.signInWithEmailAndPassword(
         email: emailController.text.trim(),
         password: passwordController.text.trim(),
       );
 
+      String uid = userCredential.user!.uid;
+
+      DocumentSnapshot userDoc = await firestore.collection('users').doc(uid).get();
+      String userName = userDoc['name'];
+      double balance = (userDoc['balance'] as num).toDouble();
+      double totalSales = (userDoc['total_sales'] as num).toDouble();
+
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Login successful!')),
+      );
+
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (context) => ArtistDashboard(
+            userName: userName,
+            balance: balance,
+            totalSales: totalSales, 
+          ),
+        ),
       );
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
