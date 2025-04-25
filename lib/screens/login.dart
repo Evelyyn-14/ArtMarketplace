@@ -1,4 +1,5 @@
 import 'package:art_marketplace/screens/artistdashboard.dart';
+import 'package:art_marketplace/screens/buyerdashboard.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -30,23 +31,39 @@ class _LoginScreenState extends State<LoginScreen> {
 
       DocumentSnapshot userDoc = await firestore.collection('users').doc(uid).get();
       String userName = userDoc['name'];
-      double balance = (userDoc['balance'] as num).toDouble();
-      double totalSales = (userDoc['total_sales'] as num).toDouble();
+      String role = userDoc['role'];
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Login successful!')),
       );
 
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (context) => ArtistDashboard(
-            userName: userName,
-            balance: balance,
-            totalSales: totalSales, 
+      if (role == 'Artist') {
+        double balance = (userDoc['balance'] as num).toDouble();
+        double totalSales = (userDoc['total_sales'] as num).toDouble();
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (context) => ArtistDashboard(
+              userName: userName,
+              balance: balance,
+              totalSales: totalSales,
+            ),
           ),
-        ),
-      );
+        );
+      } else if (role == 'Buyer') {
+        double balance = (userDoc['balance'] as num).toDouble();
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (context) => BuyerDashboard(
+              userName: userName,
+              balance: balance
+            ),
+          ),
+        );
+      } else {
+        throw Exception('Invalid user role');
+      }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Login failed: $e')),
