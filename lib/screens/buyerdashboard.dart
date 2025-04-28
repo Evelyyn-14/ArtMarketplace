@@ -1,13 +1,14 @@
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:art_marketplace/screens/login.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'login.dart';
 
 class BuyerDashboard extends StatefulWidget {
   final String userName;
-  final double balance;
+  double balance;
 
-  const BuyerDashboard({
+  BuyerDashboard({
     super.key,
     required this.userName,
     required this.balance,
@@ -19,6 +20,107 @@ class BuyerDashboard extends StatefulWidget {
 
 class _BuyerDashboardState extends State<BuyerDashboard> {
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
+  final FirebaseFirestore firestore = FirebaseFirestore.instance;
+
+  void _withdraw() async {
+    TextEditingController amountController = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Withdraw'),
+          content: TextField(
+            controller: amountController,
+            keyboardType: TextInputType.number,
+             decoration: const InputDecoration(
+              border: OutlineInputBorder()
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () async {
+                double withdrawAmount = double.tryParse(amountController.text) ?? 0.0;
+                if (withdrawAmount > 0 && withdrawAmount <= widget.balance) {
+                  setState(() {
+                    widget.balance -= withdrawAmount;
+                  });
+                  await firestore.collection('users').doc(FirebaseAuth.instance.currentUser!.uid).update({
+                    'balance': widget.balance,
+                  });
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Withdraw Successful.')),
+                  );
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Insufficient balance')),
+                  );
+                }
+                Navigator.of(context).pop();
+              },
+              child: const Text('Withdraw'),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+              child: const Text('Cancel'),
+            ),            
+          ],
+        );
+      },
+    );
+  }
+
+  void _deposit() async {
+    TextEditingController amountController = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Deposit'),
+          content: TextField(
+            controller: amountController,
+            keyboardType: TextInputType.number,
+             decoration: const InputDecoration(
+              border: OutlineInputBorder()
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () async {
+                double depositAmount = double.tryParse(amountController.text) ?? 0.0;
+                if (depositAmount > 0) {
+                  setState(() {
+                    widget.balance += depositAmount;
+                  });
+                  await firestore.collection('users').doc(FirebaseAuth.instance.currentUser!.uid).update({
+                    'balance': widget.balance,
+                  });
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Successfully deposited.')),
+                  );
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Invalid amount.')),
+                  );
+                }
+                Navigator.of(context).pop();
+              },
+              child: const Text('Deposit'),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+              child: const Text('Cancel'),
+            ),            
+          ],
+        );
+      },
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -148,8 +250,7 @@ class _BuyerDashboardState extends State<BuyerDashboard> {
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               TextButton(
-                                onPressed: () {
-                                },
+                                onPressed: _deposit,
                                 child: const Text(
                                   'Deposit',
                                   style: TextStyle(
@@ -161,8 +262,7 @@ class _BuyerDashboardState extends State<BuyerDashboard> {
                               ),
                               const SizedBox(width: 10),
                               TextButton(
-                                onPressed: () {
-                                },
+                                onPressed: _withdraw,
                                 child: const Text(
                                   'Withdraw',
                                   style: TextStyle(

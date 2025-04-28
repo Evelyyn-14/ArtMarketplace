@@ -1,10 +1,10 @@
-import 'package:art_marketplace/screens/artistdashboard.dart';
-import 'package:art_marketplace/screens/buyerdashboard.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'signup.dart';
+import 'artistdashboard.dart';
+import 'buyerdashboard.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
