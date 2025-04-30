@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'login.dart';
+import 'marketplace.dart';
 
 class ArtistDashboard extends StatefulWidget {
   String userName;
@@ -114,7 +115,10 @@ class _ArtistDashboardState extends State<ArtistDashboard> {
               leading: const Icon(Icons.store),
               title: const Text('Marketplace'),
               onTap: () {
-                Navigator.pop(context); 
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(builder: (context) => MarketPlace()),
+                );
               },
             ),
             ListTile(
