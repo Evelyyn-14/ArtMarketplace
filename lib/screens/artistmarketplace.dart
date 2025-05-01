@@ -40,6 +40,8 @@ class ArtistMarketPlace extends StatelessWidget {
             'description': _description,
             'price': _price,
             'imageBase64': base64Image,
+            'sold': false,
+            'buyerId': null,
           });
 
           Navigator.pop(context);
@@ -254,11 +256,32 @@ class ArtistMarketPlace extends StatelessWidget {
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Image.memory(
-                          imageBytes,
-                          fit: BoxFit.cover,
-                          width: 200,
-                          height: 200,
+                        Stack(
+                          children: [
+                            Image.memory(
+                              imageBytes,
+                              fit: BoxFit.cover,
+                              width: 200,
+                              height: 200,
+                            ),
+                            if (artwork['sold'] == true)
+                              Positioned(
+                                top: 0,
+                                left: 0,
+                                child: Container(
+                                  color: Colors.red.withOpacity(0.8),
+                                  padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                  child: Text(
+                                    'SOLD',
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 16,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                          ],
                         ),
                         SizedBox(width: 10),
                         Expanded(

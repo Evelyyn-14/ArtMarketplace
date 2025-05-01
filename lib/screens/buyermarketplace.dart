@@ -132,11 +132,32 @@ class Buyermarketplace extends StatelessWidget {
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Image.memory(
-                          imageBytes,
-                          fit: BoxFit.cover,
-                          width: 200,
-                          height: 200,
+                        Stack(
+                          children: [
+                            Image.memory(
+                              imageBytes,
+                              fit: BoxFit.cover,
+                              width: 200,
+                              height: 200,
+                            ),
+                            if (artwork['sold'] == true) 
+                              Positioned(
+                                top: 0,
+                                left: 0,
+                                child: Container(
+                                  color: Colors.red.withOpacity(0.8),
+                                  padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                  child: Text(
+                                    'SOLD',
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 16,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                          ],
                         ),
                         SizedBox(width: 10),
                         Expanded(
@@ -165,16 +186,104 @@ class Buyermarketplace extends StatelessWidget {
                                 style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.green),
                               ),
                               SizedBox(height: 10),
-                              ElevatedButton.icon(
-                                onPressed: () {
-                                },
-                                icon: Icon(Icons.shopping_cart),
-                                label: Text('Buy Now'),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: Colors.green,
-                                  foregroundColor: Colors.white, 
+                              if (artwork['sold'] != true)
+                                ElevatedButton.icon(
+                                  onPressed: () async {
+                                    final userId = FirebaseAuth.instance.currentUser!.uid;
+                                    final userDoc = await FirebaseFirestore.instance.collection('users').doc(userId).get();
+                                    final buyerBalance = userDoc['balance']?.toDouble() ?? 0.0;
+                                    final artPrice = artwork['price']?.toDouble() ?? 0.0;
+
+                                    showDialog(
+                                      context: context,
+                                      builder: (BuildContext context) {
+                                        return AlertDialog(
+                                          title: Text('Purchase Details'),
+                                          content: Column(
+                                            mainAxisSize: MainAxisSize.min,
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            children: [
+                                              Text('Artist: $artistName'),
+                                              Text('Price: \$${artPrice.toStringAsFixed(2)}'),
+                                              Text('Your Balance: \$${buyerBalance.toStringAsFixed(2)}'),
+                                            ],
+                                          ),
+                                          actions: [
+                                            TextButton(
+                                              onPressed: () {
+                                                Navigator.of(context).pop();
+                                              },
+                                              child: Text('Close'),
+                                            ),
+                                            TextButton(
+                                              onPressed: () async {
+                                                if (buyerBalance >= artPrice) {
+                                                  await FirebaseFirestore.instance.collection('users').doc(userId).update({
+                                                    'balance': buyerBalance - artPrice,
+                                                  });
+
+                                                  await FirebaseFirestore.instance.collection('users').doc(userId).update({
+                                                    'purchaseCount': FieldValue.increment(1),
+                                                  });
+
+                                                  await FirebaseFirestore.instance.collection('artworks').doc(artwork.id).update({
+                                                    'sold': true,
+                                                    'buyerId': userId, 
+                                                  });
+
+                                                  Navigator.of(context).pop();
+                                                  showDialog(
+                                                    context: context,
+                                                    builder: (BuildContext context) {
+                                                      return AlertDialog(
+                                                        title: Text('Purchase Successful'),
+                                                        content: Text('You have successfully purchased the artwork.'),
+                                                        actions: [
+                                                          TextButton(
+                                                            onPressed: () {
+                                                              Navigator.of(context).pop();
+                                                            },
+                                                            child: Text('OK'),
+                                                          ),
+                                                        ],
+                                                      );
+                                                    },
+                                                  );
+                                                } else {
+                                                  Navigator.of(context).pop();
+                                                  showDialog(
+                                                    context: context,
+                                                    builder: (BuildContext context) {
+                                                      return AlertDialog(
+                                                        title: Text('Insufficient Balance'),
+                                                        content: Text('You do not have enough balance to purchase this artwork.'),
+                                                        actions: [
+                                                          TextButton(
+                                                            onPressed: () {
+                                                              Navigator.of(context).pop();
+                                                            },
+                                                            child: Text('OK'),
+                                                          ),
+                                                        ],
+                                                      );
+                                                    },
+                                                  );
+                                                }
+                                              },
+                                              child: Text('Confirm'),
+                                            ),
+                                          ],
+                                        );
+                                      },
+                                    );
+                                  },
+                                  icon: Icon(Icons.shopping_cart),
+                                  label: Text('Buy Now'),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: Colors.green,
+                                    foregroundColor: Colors.white,
+                                  ),
                                 ),
-                              ),
                             ],
                           ),
                         ),
