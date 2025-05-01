@@ -180,7 +180,7 @@ class _BuyerDashboardState extends State<BuyerDashboard> {
               leading: const Icon(Icons.star),
               title: const Text('Favorites'),
               onTap: () {
-                Navigator.pop(context); 
+                Navigator.pushNamed(context, '/favorites');
               },
             ),    
             ListTile(

@@ -84,7 +84,7 @@ class Buyermarketplace extends StatelessWidget {
               leading: const Icon(Icons.star),
               title: const Text('Favorites'),
               onTap: () {
-                Navigator.pop(context);
+                Navigator.pushNamed(context, '/favorites');
               },
             ),
             ListTile(

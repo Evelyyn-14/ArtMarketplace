@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'screens/login.dart';
+import 'screens/favoritesScreen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -14,7 +15,11 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      home: LoginScreen()
+     initialRoute: '/',
+      routes: {
+        '/': (context) => LoginScreen(),
+        '/favorites': (context) => FavoritesScreen(),
+      },
     );
   }
 }
