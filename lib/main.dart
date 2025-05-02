@@ -20,18 +20,7 @@ class MyApp extends StatelessWidget {
       routes: {
         '/': (context) => LoginScreen(),
         '/favorites': (context) => FavoritesScreen(),
-        '/chat': (context) {
-          final args = ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>?;
-
-          if (args == null || args['chatId'] == null || args['userName'] == null) {
-            throw Exception('Missing required arguments: chatId and userName');
-          }
-
-          return ChatScreen(
-            chatId: args['chatId'] as String,
-            userName: args['userName'] as String,
-          );
-        },
+        '/chat': (context) => ChatScreen(),
       },
     );
   }

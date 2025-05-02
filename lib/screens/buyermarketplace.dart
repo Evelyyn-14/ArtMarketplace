@@ -75,6 +75,7 @@ class Buyermarketplace extends StatelessWidget {
                   },
                 );
               } else {
+                // Pixabay image
                 final pixabayImage = item;
                 return Card(
                   margin: const EdgeInsets.all(10),
@@ -318,7 +319,6 @@ class Buyermarketplace extends StatelessWidget {
                           ),
                           onPressed: () async {
                             if (isFavorite) {
-                              // Remove from favorites
                               await FirebaseFirestore.instance
                                   .collection('users')
                                   .doc(userId)
@@ -330,7 +330,6 @@ class Buyermarketplace extends StatelessWidget {
                                 const SnackBar(content: Text('Removed from favorites!')),
                               );
                             } else {
-                              // Add to favorites
                               await FirebaseFirestore.instance
                                   .collection('users')
                                   .doc(userId)
@@ -416,116 +415,11 @@ class Buyermarketplace extends StatelessWidget {
               ElevatedButton.icon(
                 onPressed: () {
                   _purchaseArtwork(context, artwork);
-                onPressed: () async {
-                  final userDoc = await FirebaseFirestore.instance.collection('users').doc(userId).get();
-                  final buyerBalance = userDoc['balance']?.toDouble() ?? 0.0;
-
-                  showDialog(
-                    context: context,
-                    builder: (BuildContext context) {
-                      return AlertDialog(
-                        title: const Text('Purchase Details'),
-                        content: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text('Artist: $artistName'),
-                            Text('Price: \$${artPrice.toStringAsFixed(2)}'),
-                            Text('Your Balance: \$${buyerBalance.toStringAsFixed(2)}'),
-                          ],
-                        ),
-                        actions: [
-                          TextButton(
-                            onPressed: () {
-                              Navigator.of(context).pop();
-                            },
-                            child: const Text('Close'),
-                          ),
-                          TextButton(
-                            onPressed: () async {
-                              if (buyerBalance >= artPrice) {
-                                await FirebaseFirestore.instance.collection('users').doc(userId).update({
-                                  'balance': buyerBalance - artPrice,
-                                });
-                                await FirebaseFirestore.instance.collection('artworks').doc(artwork.id).update({
-                                  'sold': true,
-                                  'buyerId': userId,
-                                });
-                                final artistDocRef = FirebaseFirestore.instance.collection('users').doc(artwork['artistId']);
-                                final artistDoc = await artistDocRef.get();
-
-                                if (artistDoc.exists) {
-                                  final artistBalance = artistDoc['balance']?.toDouble() ?? 0.0;
-                                  final artistTotalSales = artistDoc['total_sales']?.toDouble() ?? 0.0;
-                                  final artworksSold = artistDoc['total_purchases'] ?? 0;
-
-                                  await artistDocRef.update({
-                                    'balance': artistBalance + artPrice,
-                                    'total_sales': artistTotalSales + artPrice,
-                                    'total_purchases': artworksSold + 1,
-                                  });
-                                } else {
-                                  throw Exception('Artist document does not exist.');
-                                }
-
-                                final buyerDocRef = FirebaseFirestore.instance.collection('users').doc(userId);
-                                final buyerDoc = await buyerDocRef.get();
-
-                                if (buyerDoc.exists) {
-                                  final buyerTotalPurchases = buyerDoc['total_purchases']?.toDouble() ?? 0.0;
-
-                                  await buyerDocRef.update({
-                                    'total_purchases': buyerTotalPurchases + artPrice,
-                                  });
-                                } else {
-                                  throw Exception('Buyer document does not exist.');
-                                }
-
-                                Navigator.of(context).pop();
-                                Navigator.of(context).pop();
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(content: Text('Purchase successful!')),
-                                );
-                              } else {
-                                Navigator.of(context).pop();
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(content: Text('Insufficient balance.')),
-                                );
-                              }
-                            },
-                            child: const Text('Confirm'),
-                          ),
-                        ],
-                      );
-                    },
-                  );
                 },
                 icon: const Icon(Icons.shopping_cart),
                 label: const Text('Buy Now'),
                 style: ElevatedButton.styleFrom(),
               ),
-            TextButton(
-              onPressed: () async {
-                final chatRoomId = '${userId}_${artwork['artistId']}';
-                final chatRoomRef = FirebaseFirestore.instance.collection('chatRooms').doc(chatRoomId);
-
-                final chatRoomSnapshot = await chatRoomRef.get();
-                if (!chatRoomSnapshot.exists) {
-                  await chatRoomRef.set({
-                    'participants': [userId, artwork['artistId']],
-                    'emails': {
-                      userId: FirebaseAuth.instance.currentUser!.email,
-                      artwork['artistId']: artistName,
-                    },
-                  });
-                }
-                Navigator.pushNamed(context, '/chat', arguments: {
-                  'chatRoomId': chatRoomId,
-                  'artistName': artistName,
-                });
-              },
-              child: const Text('Chat'),
-            ),
             TextButton(
               onPressed: () {
                 Navigator.of(context).pop();
@@ -600,7 +494,6 @@ class Buyermarketplace extends StatelessWidget {
       return;
     }
 
-    // Simulate purchase
     try {
       await FirebaseFirestore.instance.collection('users').doc(userId).update({
         'balance': buyerBalance - convertedPrice,
