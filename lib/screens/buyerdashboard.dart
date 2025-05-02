@@ -123,6 +123,16 @@ class _BuyerDashboardState extends State<BuyerDashboard> {
     );
   }
 
+  Future<List<Map<String, dynamic>>> _fetchTopSoldArtworks() async {
+    final querySnapshot = await firestore
+        .collection('artworks')
+        .orderBy('price', descending: true)
+        .limit(10)
+        .get();
+
+    return querySnapshot.docs.map((doc) => doc.data()).toList();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -165,7 +175,7 @@ class _BuyerDashboardState extends State<BuyerDashboard> {
               onTap: () {
                 Navigator.pushReplacement(
                   context,
-                  MaterialPageRoute(builder: (context) => Buyermarketplace()),
+                  MaterialPageRoute(builder: (context) => BuyerMarketplace()),
                 );
               },
             ),
@@ -173,14 +183,14 @@ class _BuyerDashboardState extends State<BuyerDashboard> {
               leading: const Icon(Icons.chat_bubble),
               title: const Text('Chat'),
               onTap: () {
-                Navigator.pop(context);
+                Navigator.pushNamed(context, '/chat');
               },
             ),
             ListTile(
               leading: const Icon(Icons.star),
               title: const Text('Favorites'),
               onTap: () {
-                Navigator.pop(context); 
+                Navigator.pushNamed(context, '/favorites');
               },
             ),    
             ListTile(
@@ -285,6 +295,71 @@ class _BuyerDashboardState extends State<BuyerDashboard> {
                 ),
               ],
             ),
+          ),
+          const SizedBox(height: 20),
+          FutureBuilder<List<Map<String, dynamic>>>(
+            future: _fetchTopSoldArtworks(),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Center(child: CircularProgressIndicator());
+              }
+              if (snapshot.hasError || snapshot.data == null || snapshot.data!.isEmpty) {
+                return const Center(child: Text('No expensive sold artworks found.'));
+              }
+
+              final artworks = snapshot.data!;
+              return Center(
+                child: Container(
+                  width: 350,
+                  padding: const EdgeInsets.all(16.0),
+                  decoration: BoxDecoration(
+                    color: Colors.orange.shade100,
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Center(
+                        child: const Text(
+                          'Top 10 Expensive Artworks',
+                          style: TextStyle(
+                            fontSize: 20,
+                            color: Colors.black,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      ...artworks.map((artwork) {
+                        return Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 5.0),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                artwork['title'] ?? 'Untitled',
+                                style: const TextStyle(
+                                  fontSize: 16,
+                                  color: Colors.blue,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              Text(
+                                '\$${(artwork['price'] as num).toStringAsFixed(2)}',
+                                style: const TextStyle(
+                                  fontSize: 16,
+                                  color: Colors.green,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      }).toList(),
+                    ],
+                  ),
+                ),
+              );
+            },
           ),
         ],
       ),

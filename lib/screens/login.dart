@@ -40,6 +40,7 @@ class _LoginScreenState extends State<LoginScreen> {
       if (role == 'Artist') {
         double balance = (userDoc['balance'] as num).toDouble();
         double totalSales = (userDoc['total_sales'] as num).toDouble();
+        int totalPurchases = (userDoc['total_purchases'] as num).toInt();
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
@@ -47,6 +48,7 @@ class _LoginScreenState extends State<LoginScreen> {
               userName: userName,
               balance: balance,
               totalSales: totalSales,
+              totalPurchases: totalPurchases,
             ),
           ),
         );

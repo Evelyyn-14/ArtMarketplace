@@ -4,17 +4,20 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'login.dart';
 import 'artistmarketplace.dart';
+import 'chatScreen.dart';
 
 class ArtistDashboard extends StatefulWidget {
   String userName;
   double balance;
   double totalSales;
+  int totalPurchases;
 
   ArtistDashboard({
     super.key,
     required this.userName,
     required this.balance,
     required this.totalSales,
+    required this.totalPurchases,
   });
 
   @override
@@ -24,6 +27,21 @@ class ArtistDashboard extends StatefulWidget {
 class _ArtistDashboardState extends State<ArtistDashboard> {
   final GlobalKey<ScaffoldState> _menuKey = GlobalKey<ScaffoldState>();
   final FirebaseFirestore firestore = FirebaseFirestore.instance;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchArtistData();
+  }
+
+  Future<void> _fetchArtistData() async {
+    final artistDoc = await firestore.collection('users').doc(FirebaseAuth.instance.currentUser!.uid).get();
+    setState(() {
+      widget.balance = artistDoc['balance']?.toDouble() ?? 0.0;
+      widget.totalSales = artistDoc['totalSales']?.toDouble() ?? 0.0;
+      widget.totalPurchases = artistDoc['totalPurchases']?.toInt() ?? 0;
+    });
+  }
 
   Future<void> _withdraw() async {
     final TextEditingController amountController = TextEditingController();
@@ -125,14 +143,18 @@ class _ArtistDashboardState extends State<ArtistDashboard> {
               leading: const Icon(Icons.chat_bubble),
               title: const Text('Chat'),
               onTap: () {
-                Navigator.pop(context); 
+                 Navigator.push(
+                   context,
+                   MaterialPageRoute(builder: (context) => ChatScreen()
+                   ),
+                 );
               },
             ),
             ListTile(
               leading: const Icon(Icons.star),
               title: const Text('Favorites'),
               onTap: () {
-                Navigator.pop(context); 
+                Navigator.pushNamed(context, '/favorites'); 
               },
             ),                        
             ListTile(
@@ -278,7 +300,7 @@ class _ArtistDashboardState extends State<ArtistDashboard> {
                           ),
                           const SizedBox(height: 20),
                           Text(
-                            '0',
+                            '${widget.totalPurchases}',
                             style: const TextStyle(
                               color: Colors.black,
                               fontSize: 50,
