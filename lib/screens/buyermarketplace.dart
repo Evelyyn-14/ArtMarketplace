@@ -476,9 +476,22 @@ class Buyermarketplace extends StatelessWidget {
                 ),
               ),
             TextButton(
-              onPressed: () {
+              onPressed: () async {
+                final chatRoomId = '${userId}_${artwork['artistId']}';
+                final chatRoomRef = FirebaseFirestore.instance.collection('chatRooms').doc(chatRoomId);
+
+                final chatRoomSnapshot = await chatRoomRef.get();
+                if (!chatRoomSnapshot.exists) {
+                  await chatRoomRef.set({
+                    'participants': [userId, artwork['artistId']],
+                    'emails': {
+                      userId: FirebaseAuth.instance.currentUser!.email,
+                      artwork['artistId']: artistName,
+                    },
+                  });
+                }
                 Navigator.pushNamed(context, '/chat', arguments: {
-                  'artistId': artwork['artistId'],
+                  'chatRoomId': chatRoomId,
                   'artistName': artistName,
                 });
               },

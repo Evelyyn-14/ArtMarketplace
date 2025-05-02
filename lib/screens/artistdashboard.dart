@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'login.dart';
 import 'artistmarketplace.dart';
+import 'chatscreen.dart';
 
 class ArtistDashboard extends StatefulWidget {
   String userName;
@@ -142,7 +143,10 @@ class _ArtistDashboardState extends State<ArtistDashboard> {
               leading: const Icon(Icons.chat_bubble),
               title: const Text('Chat'),
               onTap: () {
-                Navigator.pop(context); 
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => ChatScreen()),
+                );
               },
             ),
             ListTile(
