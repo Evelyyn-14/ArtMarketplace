@@ -116,7 +116,8 @@ class FavoritesScreen extends StatelessWidget {
 
     final imageBase64 = artwork['imageBase64'] ?? '';
     final imageBytes = imageBase64.isNotEmpty ? base64Decode(imageBase64) : null;
-  
+  }
+
   void _createCollection(BuildContext context, String userId) {
     final _formKey = GlobalKey<FormState>();
     String? _collectionName;

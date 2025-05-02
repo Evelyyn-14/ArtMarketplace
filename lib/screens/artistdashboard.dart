@@ -9,12 +9,14 @@ class ArtistDashboard extends StatefulWidget {
   String userName;
   double balance;
   double totalSales;
+  int totalPurchases;
 
   ArtistDashboard({
     super.key,
     required this.userName,
     required this.balance,
     required this.totalSales,
+    required this.totalPurchases,
   });
 
   @override
@@ -36,6 +38,7 @@ class _ArtistDashboardState extends State<ArtistDashboard> {
     setState(() {
       widget.balance = artistDoc['balance']?.toDouble() ?? 0.0;
       widget.totalSales = artistDoc['totalSales']?.toDouble() ?? 0.0;
+      widget.totalPurchases = artistDoc['totalPurchases']?.toInt() ?? 0;
     });
   }
 
@@ -292,7 +295,7 @@ class _ArtistDashboardState extends State<ArtistDashboard> {
                           ),
                           const SizedBox(height: 20),
                           Text(
-                            '0',
+                            '${widget.totalPurchases}',
                             style: const TextStyle(
                               color: Colors.black,
                               fontSize: 50,

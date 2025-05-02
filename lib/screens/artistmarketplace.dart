@@ -345,6 +345,7 @@ class ArtistMarketPlace extends StatelessWidget {
                 final userName = userDoc['name'] ?? 'User';
                 final balance = userDoc['balance']?.toDouble() ?? 0.0;
                 final totalSales = userDoc['total_sales']?.toDouble() ?? 0.0;
+                final totalPurchases = userDoc['total_purchases']?.toInt() ?? 0;
 
                 Navigator.pushReplacement(
                   context,
@@ -353,6 +354,7 @@ class ArtistMarketPlace extends StatelessWidget {
                       userName: userName,
                       balance: balance,
                       totalSales: totalSales,
+                      totalPurchases: totalPurchases,
                     ),
                   ),
                 );
