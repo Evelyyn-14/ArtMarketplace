@@ -163,10 +163,7 @@ class _BuyerDashboardState extends State<BuyerDashboard> {
               leading: const Icon(Icons.store),
               title: const Text('Marketplace'),
               onTap: () {
-                Navigator.pushReplacement(
-                  context,
-                  MaterialPageRoute(builder: (context) => Buyermarketplace()),
-                );
+                Navigator.pushNamed(context, '/buyermarketplace');
               },
             ),
             ListTile(

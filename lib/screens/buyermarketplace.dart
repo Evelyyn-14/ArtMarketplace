@@ -4,10 +4,11 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'dart:convert';
 import 'dart:typed_data';
+import '../services/apiServices.dart';
 import 'login.dart';
 import 'buyerdashboard.dart';
 
-class Buyermarketplace extends StatelessWidget {
+class BuyerMarketplace extends StatelessWidget {
   final GlobalKey<ScaffoldState> _menuKey = GlobalKey<ScaffoldState>();
 
   @override
@@ -34,37 +35,61 @@ class Buyermarketplace extends StatelessWidget {
         ),
       ),
       drawer: _buildDrawer(context, userId),
-      body: StreamBuilder<QuerySnapshot>(
-        stream: FirebaseFirestore.instance.collection('artworks').snapshots(),
+      body: FutureBuilder<List<dynamic>>(
+        future: _fetchCombinedData(),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
           }
-          if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-            return const Center(child: Text('No artworks on sale.'));
+          if (snapshot.hasError) {
+            return Center(child: Text('Error: ${snapshot.error}'));
+          }
+          if (!snapshot.hasData || snapshot.data!.isEmpty) {
+            return const Center(child: Text('No artworks or images found.'));
           }
 
-          final artworks = snapshot.data!.docs;
+          final combinedData = snapshot.data!;
 
-          return ListView.builder(
-            itemCount: artworks.length,
+          return GridView.builder(
+            padding: const EdgeInsets.all(10),
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 2,
+              crossAxisSpacing: 10,
+              mainAxisSpacing: 10,
+            ),
+            itemCount: combinedData.length,
             itemBuilder: (context, index) {
-              final artwork = artworks[index];
-              final imageBase64 = artwork['imageBase64'] as String;
-              final imageBytes = base64Decode(imageBase64);
-
-              return FutureBuilder<DocumentSnapshot>(
-                future: FirebaseFirestore.instance.collection('users').doc(artwork['artistId']).get(),
-                builder: (context, userSnapshot) {
-                  if (userSnapshot.connectionState == ConnectionState.waiting) {
-                    return const Center(child: CircularProgressIndicator());
-                  }
-
-                  final artistName = userSnapshot.data?['name'] ?? 'Unknown Artist';
-
-                  return _buildArtworkCard(context, artwork, artistName, imageBytes, userId);
-                },
-              );
+              final item = combinedData[index];
+              if (item is DocumentSnapshot) {
+                final artwork = item;
+                final imageBytes = base64Decode(artwork['imageBase64']);
+                return _buildArtworkCard(context, artwork, imageBytes);
+              } else {
+                final image = item;
+                return Card(
+                  elevation: 5,
+                  child: Column(
+                    children: [
+                      Expanded(
+                        child: Image.network(
+                          image['webformatURL'],
+                          fit: BoxFit.cover,
+                          width: double.infinity,
+                        ),
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.all(8.0),
+                        child: Text(
+                          image['tags'],
+                          style: const TextStyle(fontSize: 14),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }
             },
           );
         },
@@ -112,7 +137,7 @@ class Buyermarketplace extends StatelessWidget {
             leading: const Icon(Icons.store),
             title: const Text('MarketPlace'),
             onTap: () {
-              Navigator.pop(context);
+              Navigator.pushNamed(context, '/buyermarketplace');
             },
           ),
           ListTile(
@@ -145,146 +170,122 @@ class Buyermarketplace extends StatelessWidget {
     );
   }
 
-  Widget _buildArtworkCard(BuildContext context, DocumentSnapshot artwork, String artistName, Uint8List imageBytes, String userId) {
-    return Card(
-      margin: const EdgeInsets.all(10),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Stack(
+  Widget _buildArtworkCard(BuildContext context, DocumentSnapshot artwork, Uint8List imageBytes) {
+    return FutureBuilder<DocumentSnapshot>(
+      future: FirebaseFirestore.instance.collection('users').doc(artwork['buyerId']).get(),
+      builder: (context, snapshot) {
+        final isSold = artwork['sold'] == true;
+
+        String buyerName = 'Unknown Buyer';
+        if (isSold && snapshot.hasData && snapshot.data!.exists) {
+          buyerName = snapshot.data!['name'] ?? 'Unknown Buyer';
+        }
+
+        return Card(
+          margin: const EdgeInsets.all(10),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Image.memory(
-                imageBytes,
-                fit: BoxFit.cover,
-                width: 200,
-                height: 200,
-              ),
-              if (artwork['sold'] == true)
-                Positioned(
-                  top: 0,
-                  left: 0,
-                  child: Container(
-                    color: Colors.red.withOpacity(0.8),
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    child: const Text(
-                      'SOLD',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
-                      ),
-                    ),
+              Stack(
+                children: [
+                  Image.memory(
+                    imageBytes,
+                    fit: BoxFit.cover,
+                    width: 200,
+                    height: 200,
                   ),
-                ),
-            ],
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  artwork['title'] ?? 'Untitled',
-                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 5),
-                Text(
-                  artwork['description'] ?? 'No description',
-                  style: TextStyle(fontSize: 14, color: Colors.grey[700]),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 5),
-                Text(
-                  'By: $artistName',
-                  style: TextStyle(fontSize: 14, color: Colors.grey[600]),
-                ),
-                const SizedBox(height: 5),
-                Text(
-                  '\$${artwork['price']?.toStringAsFixed(2) ?? '0.00'}',
-                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.green),
-                ),
-                const SizedBox(height: 10),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Expanded(
-                      child: ElevatedButton.icon(
-                        onPressed: () {
-                          _showArtworkDetails(context, artwork, artistName);
-                        },
-                        icon: const Icon(Icons.info, size: 16),
-                        label: const Text(
-                          'Details',
-                          style: TextStyle(fontSize: 12),
-                        ),
-                        style: ElevatedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                  if (isSold)
+                    Positioned(
+                      top: 0,
+                      left: 0,
+                      child: Container(
+                        color: Colors.red.withOpacity(0.8),
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        child: const Text(
+                          'SOLD',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                          ),
                         ),
                       ),
                     ),
-                    StreamBuilder<DocumentSnapshot>(
-                      stream: FirebaseFirestore.instance
-                          .collection('users')
-                          .doc(userId)
-                          .collection('favorites')
-                          .doc(artwork.id)
-                          .snapshots(),
-                      builder: (context, favoriteSnapshot) {
-                        final isFavorite = favoriteSnapshot.data?.exists ?? false;
-
-                        return IconButton(
-                          icon: Icon(
-                            isFavorite ? Icons.favorite : Icons.favorite_border,
-                            color: isFavorite ? Colors.red : Colors.grey,
-                          ),
-                          onPressed: () async {
-                            if (isFavorite) {
-                              // Remove from favorites
-                              await FirebaseFirestore.instance
-                                  .collection('users')
-                                  .doc(userId)
-                                  .collection('favorites')
-                                  .doc(artwork.id)
-                                  .delete();
-
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(content: Text('Removed from favorites!')),
-                              );
-                            } else {
-                              // Add to favorites
-                              await FirebaseFirestore.instance
-                                  .collection('users')
-                                  .doc(userId)
-                                  .collection('favorites')
-                                  .doc(artwork.id)
-                                  .set({
-                                'title': artwork['title'],
-                                'description': artwork['description'],
-                                'price': artwork['price'],
-                                'imageBase64': artwork['imageBase64'],
-                                'artistId': artwork['artistId'],
-                              });
-
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(content: Text('Added to favorites!')),
-                              );
-                            }
+                ],
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      artwork['title'] ?? 'Untitled',
+                      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 5),
+                    Text(
+                      artwork['description'] ?? 'No description',
+                      style: TextStyle(fontSize: 14, color: Colors.grey[700]),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 5),
+                    Text(
+                      '\$${artwork['price']?.toStringAsFixed(2) ?? '0.00'}',
+                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.green),
+                    ),
+                    const SizedBox(height: 10),
+                    if (isSold)
+                      Text(
+                        'Buyer: $buyerName',
+                        style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+                      ),
+                    const SizedBox(height: 10),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        ElevatedButton.icon(
+                          onPressed: () {
+                            _showArtworkDetails(context, artwork);
                           },
-                        );
-                      },
+                          icon: const Icon(Icons.info, size: 16),
+                          label: const Text(
+                            'Details',
+                            style: TextStyle(fontSize: 12),
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                          ),
+                        ),
+                        if (isSold)
+                          IconButton(
+                            icon: const Icon(Icons.chat_bubble, color: Colors.blue),
+                            onPressed: () {
+                              Navigator.pushNamed(context, '/chat', arguments: {
+                                'buyerId': artwork['buyerId'],
+                                'buyerName': buyerName,
+                              });
+                            },
+                          ),
+                      ],
                     ),
                   ],
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 
-  void _showArtworkDetails(BuildContext context, DocumentSnapshot artwork, String artistName) {
+  Future<List<dynamic>> _fetchCombinedData() async {
+    final allArtworks = await FirebaseFirestore.instance.collection('artworks').get();
+    final pixabayImages = await Apiservices().getImages('art');
+    return [...allArtworks.docs, ...pixabayImages];
+  }
+
+  void _showArtworkDetails(BuildContext context, DocumentSnapshot artwork) {
     final imageBase64 = artwork['imageBase64'] as String;
     final imageBytes = base64Decode(imageBase64);
     final artPrice = artwork['price']?.toDouble() ?? 0.0;
@@ -326,11 +327,6 @@ class Buyermarketplace extends StatelessWidget {
                   style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.green),
                 ),
                 const SizedBox(height: 10),
-                Text(
-                  'Artist: $artistName',
-                  style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
-                ),
-                const SizedBox(height: 10),
               ],
             ),
           ),
@@ -350,7 +346,6 @@ class Buyermarketplace extends StatelessWidget {
                           mainAxisSize: MainAxisSize.min,
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text('Artist: $artistName'),
                             Text('Price: \$${artPrice.toStringAsFixed(2)}'),
                             Text('Your Balance: \$${buyerBalance.toStringAsFixed(2)}'),
                           ],
@@ -374,6 +369,12 @@ class Buyermarketplace extends StatelessWidget {
                                   'buyerId': userId,
                                 });
 
+                                final artistId = artwork['artistId'];
+                                final artistDoc = FirebaseFirestore.instance.collection('users').doc(artistId);
+                                await artistDoc.update({
+                                  'total_sales': FieldValue.increment(1), 
+                                });
+
                                 Navigator.of(context).pop();
                                 Navigator.of(context).pop();
                                 ScaffoldMessenger.of(context).showSnackBar(
@@ -395,18 +396,8 @@ class Buyermarketplace extends StatelessWidget {
                 },
                 icon: const Icon(Icons.shopping_cart),
                 label: const Text('Buy Now'),
-                style: ElevatedButton.styleFrom(
-                ),
+                style: ElevatedButton.styleFrom(),
               ),
-            TextButton(
-              onPressed: () {
-                Navigator.pushNamed(context, '/chat', arguments: {
-                  'artistId': artwork['artistId'],
-                  'artistName': artistName,
-                });
-              },
-              child: const Text('Chat'),
-            ),
             TextButton(
               onPressed: () {
                 Navigator.of(context).pop();
