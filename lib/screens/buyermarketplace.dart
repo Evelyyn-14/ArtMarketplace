@@ -57,7 +57,6 @@ class Buyermarketplace extends StatelessWidget {
               final item = combinedData[index];
 
               if (item is DocumentSnapshot) {
-                // Firestore artwork
                 final artwork = item;
                 final imageBase64 = artwork['imageBase64'] as String;
                 final imageBytes = base64Decode(imageBase64);
@@ -75,7 +74,6 @@ class Buyermarketplace extends StatelessWidget {
                   },
                 );
               } else {
-                // Pixabay image
                 final pixabayImage = item;
                 return Card(
                   margin: const EdgeInsets.all(10),
@@ -419,11 +417,39 @@ class Buyermarketplace extends StatelessWidget {
                                 await FirebaseFirestore.instance.collection('users').doc(userId).update({
                                   'balance': buyerBalance - artPrice,
                                 });
-
                                 await FirebaseFirestore.instance.collection('artworks').doc(artwork.id).update({
                                   'sold': true,
                                   'buyerId': userId,
                                 });
+                                final artistDocRef = FirebaseFirestore.instance.collection('users').doc(artwork['artistId']);
+                                final artistDoc = await artistDocRef.get();
+
+                                if (artistDoc.exists) {
+                                  final artistBalance = artistDoc['balance']?.toDouble() ?? 0.0;
+                                  final artistTotalSales = artistDoc['total_sales']?.toDouble() ?? 0.0;
+                                  final artworksSold = artistDoc['total_purchases'] ?? 0;
+
+                                  await artistDocRef.update({
+                                    'balance': artistBalance + artPrice,
+                                    'total_sales': artistTotalSales + artPrice,
+                                    'total_purchases': artworksSold + 1,
+                                  });
+                                } else {
+                                  throw Exception('Artist document does not exist.');
+                                }
+
+                                final buyerDocRef = FirebaseFirestore.instance.collection('users').doc(userId);
+                                final buyerDoc = await buyerDocRef.get();
+
+                                if (buyerDoc.exists) {
+                                  final buyerTotalPurchases = buyerDoc['total_purchases']?.toDouble() ?? 0.0;
+
+                                  await buyerDocRef.update({
+                                    'total_purchases': buyerTotalPurchases + artPrice,
+                                  });
+                                } else {
+                                  throw Exception('Buyer document does not exist.');
+                                }
 
                                 Navigator.of(context).pop();
                                 Navigator.of(context).pop();

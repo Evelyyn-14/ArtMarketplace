@@ -90,6 +90,33 @@ class FavoritesScreen extends StatelessWidget {
     );
   }
 
+  void _showArtworkDetails(BuildContext context, DocumentSnapshot? artwork, String artworkId) {
+    final userId = FirebaseAuth.instance.currentUser!.uid;
+
+    if (artwork == null || !artwork.exists) {
+      showDialog(
+        context: context,
+        builder: (BuildContext context) {
+          return AlertDialog(
+            title: const Text('Artwork Not Found'),
+            content: const Text('This artwork is no longer available.'),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Navigator.of(context).pop();
+                },
+                child: const Text('Close'),
+              ),
+            ],
+          );
+        },
+      );
+      return;
+    }
+
+    final imageBase64 = artwork['imageBase64'] ?? '';
+    final imageBytes = imageBase64.isNotEmpty ? base64Decode(imageBase64) : null;
+  
   void _createCollection(BuildContext context, String userId) {
     final _formKey = GlobalKey<FormState>();
     String? _collectionName;
