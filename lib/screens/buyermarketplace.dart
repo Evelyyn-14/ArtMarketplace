@@ -77,7 +77,7 @@ class Buyermarketplace extends StatelessWidget {
               leading: const Icon(Icons.chat_bubble),
               title: const Text('Chat'),
               onTap: () {
-                Navigator.pop(context);
+                Navigator.pushNamed(context, '/chat');
               },
             ),
             ListTile(

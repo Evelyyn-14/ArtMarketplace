@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'screens/login.dart';
 import 'screens/favoritesScreen.dart';
+import 'screens/chatScreen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -19,6 +20,7 @@ class MyApp extends StatelessWidget {
       routes: {
         '/': (context) => LoginScreen(),
         '/favorites': (context) => FavoritesScreen(),
+        '/chat': (context) => ChatScreen(),
       },
     );
   }
