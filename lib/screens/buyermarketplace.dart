@@ -6,9 +6,11 @@ import 'dart:convert';
 import 'dart:typed_data';
 import 'login.dart';
 import 'buyerdashboard.dart';
+import 'package:art_marketplace/services/apiService.dart';
 
 class Buyermarketplace extends StatelessWidget {
   final GlobalKey<ScaffoldState> _menuKey = GlobalKey<ScaffoldState>();
+  final Apiservices _apiServices = Apiservices();
 
   @override
   Widget build(BuildContext context) {
@@ -34,42 +36,91 @@ class Buyermarketplace extends StatelessWidget {
         ),
       ),
       drawer: _buildDrawer(context, userId),
-      body: StreamBuilder<QuerySnapshot>(
-        stream: FirebaseFirestore.instance.collection('artworks').snapshots(),
+      body: FutureBuilder<List<dynamic>>(
+        future: _fetchCombinedData(),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
           }
-          if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-            return const Center(child: Text('No artworks on sale.'));
+          if (snapshot.hasError) {
+            return Center(child: Text('Error: ${snapshot.error}'));
+          }
+          if (!snapshot.hasData || snapshot.data!.isEmpty) {
+            return const Center(child: Text('No artworks or images found.'));
           }
 
-          final artworks = snapshot.data!.docs;
+          final combinedData = snapshot.data!;
 
           return ListView.builder(
-            itemCount: artworks.length,
+            itemCount: combinedData.length,
             itemBuilder: (context, index) {
-              final artwork = artworks[index];
-              final imageBase64 = artwork['imageBase64'] as String;
-              final imageBytes = base64Decode(imageBase64);
+              final item = combinedData[index];
 
-              return FutureBuilder<DocumentSnapshot>(
-                future: FirebaseFirestore.instance.collection('users').doc(artwork['artistId']).get(),
-                builder: (context, userSnapshot) {
-                  if (userSnapshot.connectionState == ConnectionState.waiting) {
-                    return const Center(child: CircularProgressIndicator());
-                  }
+              if (item is DocumentSnapshot) {
+                // Firestore artwork
+                final artwork = item;
+                final imageBase64 = artwork['imageBase64'] as String;
+                final imageBytes = base64Decode(imageBase64);
 
-                  final artistName = userSnapshot.data?['name'] ?? 'Unknown Artist';
+                return FutureBuilder<DocumentSnapshot>(
+                  future: FirebaseFirestore.instance.collection('users').doc(artwork['artistId']).get(),
+                  builder: (context, userSnapshot) {
+                    if (userSnapshot.connectionState == ConnectionState.waiting) {
+                      return const Center(child: CircularProgressIndicator());
+                    }
 
-                  return _buildArtworkCard(context, artwork, artistName, imageBytes, userId);
-                },
-              );
+                    final artistName = userSnapshot.data?['name'] ?? 'Unknown Artist';
+
+                    return _buildArtworkCard(context, artwork, artistName, imageBytes, userId);
+                  },
+                );
+              } else {
+                // Pixabay image
+                final pixabayImage = item;
+                return Card(
+                  margin: const EdgeInsets.all(10),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Image.network(
+                        pixabayImage['webformatURL'],
+                        fit: BoxFit.cover,
+                        width: double.infinity,
+                        height: 200,
+                      ),
+                      const SizedBox(height: 10),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 10),
+                        child: Text(
+                          pixabayImage['tags'] ?? 'No description',
+                          style: TextStyle(fontSize: 14, color: Colors.grey[700]),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                    ],
+                  ),
+                );
+              }
             },
           );
         },
       ),
     );
+  }
+
+  Future<List<dynamic>> _fetchCombinedData() async {
+    try {
+      final artworkQuerySnapshot = await FirebaseFirestore.instance.collection('artworks').get();
+      final artworks = artworkQuerySnapshot.docs;
+
+      final pixabayImages = await _apiServices.getImages('art');
+
+      return [...artworks, ...pixabayImages];
+    } catch (e) {
+      throw Exception('Failed to fetch data: $e');
+    }
   }
 
   Widget _buildDrawer(BuildContext context, String userId) {
