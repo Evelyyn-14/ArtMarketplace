@@ -173,7 +173,7 @@ class _BuyerDashboardState extends State<BuyerDashboard> {
               leading: const Icon(Icons.chat_bubble),
               title: const Text('Chat'),
               onTap: () {
-                Navigator.pop(context);
+                Navigator.pushNamed(context, '/chat');
               },
             ),
             ListTile(
