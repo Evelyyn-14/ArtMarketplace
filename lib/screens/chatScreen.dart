@@ -4,27 +4,48 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 class ChatScreen extends StatefulWidget {
-  const ChatScreen({super.key});
+  final String chatId;
+  final String userName;
+
+  const ChatScreen({required this.chatId, required this.userName, Key? key}) : super(key: key);
 
   @override
   _ChatScreenState createState() => _ChatScreenState();
 }
 
 class _ChatScreenState extends State<ChatScreen> {
-  final FirebaseAuth _auth = FirebaseAuth.instance;
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-
-  String? _selectedChatRoomId;
-
+  final TextEditingController _messageController = TextEditingController();
+  final userId = FirebaseAuth.instance.currentUser!.uid;
+  
   @override
   Widget build(BuildContext context) {
     final user = _auth.currentUser;
     final args = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
 
-    if (user == null) {
-      return const Center(child: Text('You must be logged in to use the chat.'));
-    }
+    try {
+      await FirebaseFirestore.instance
+          .collection('chats')
+          .doc(widget.chatId)
+          .collection('messages')
+          .add({
+        'senderId': userId,
+        'message': _messageController.text.trim(),
+        'timestamp': FieldValue.serverTimestamp(),
+      });
 
+      _messageController.clear();
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to send message: $e')),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('Chat with ${widget.userName}'),
     if (args != null && args.containsKey('chatRoomId')) {
       _selectedChatRoomId = args['chatRoomId'];
     }
@@ -40,9 +61,68 @@ class _ChatScreenState extends State<ChatScreen> {
         ),
         centerTitle: true,
       ),
-      body: Row(
+      body: Column(
         children: [
           Expanded(
+            child: StreamBuilder<QuerySnapshot>(
+              stream: FirebaseFirestore.instance
+                  .collection('chats')
+                  .doc(widget.chatId)
+                  .collection('messages')
+                  .orderBy('timestamp', descending: true)
+                  .snapshots(),
+              builder: (context, snapshot) {
+                if (!snapshot.hasData) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+
+                final messages = snapshot.data!.docs;
+
+                return ListView.builder(
+                  reverse: true,
+                  itemCount: messages.length,
+                  itemBuilder: (context, index) {
+                    final message = messages[index];
+                    final isMe = message['senderId'] == userId;
+
+                    return Align(
+                      alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
+                      child: Container(
+                        margin: const EdgeInsets.symmetric(vertical: 5, horizontal: 10),
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: isMe ? Colors.blue : Colors.grey[300],
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Text(
+                          message['message'],
+                          style: TextStyle(color: isMe ? Colors.white : Colors.black),
+                        ),
+                      ),
+                    );
+                  },
+                );
+              },
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _messageController,
+                    decoration: const InputDecoration(
+                      hintText: 'Type a message...',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.send),
+                  onPressed: _sendMessage,
+                ),
+              ],
             flex: 1,
             child: Container(
               color: Colors.orange.shade100,
@@ -109,19 +189,9 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 }
 
-class ChatMessages extends StatefulWidget {
-  final String chatRoomId;
-
-  const ChatMessages({super.key, required this.chatRoomId});
-
-  @override
-  _ChatMessagesState createState() => _ChatMessagesState();
-}
-
-class _ChatMessagesState extends State<ChatMessages> {
-  final TextEditingController _messageController = TextEditingController();
-  final FirebaseAuth _auth = FirebaseAuth.instance;
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+final Map<String, WidgetBuilder> routes = {
+  '/chat': (context) {
+    final args = ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>?;
 
   Future<void> _sendMessage() async {
     if (_messageController.text.trim().isEmpty) return;
@@ -238,7 +308,12 @@ class _ChatMessagesState extends State<ChatMessages> {
             ],
           ),
         ),
-      ],
+      );
+    }
+
+    return ChatScreen(
+      chatId: args['chatId'] as String,
+      userName: args['userName'] as String,
     );
-  }
-}
+  },
+};

@@ -371,14 +371,14 @@ class ArtistMarketPlace extends StatelessWidget {
               leading: const Icon(Icons.chat_bubble),
               title: const Text('Chat'),
               onTap: () {
-                Navigator.pop(context);
+                Navigator.pushNamed(context,'/chat');
               },
             ),
             ListTile(
               leading: const Icon(Icons.star),
               title: const Text('Favorites'),
               onTap: () {
-                Navigator.pop(context);
+                Navigator.pushNamed(context, '/favorites');
               },
             ),
             ListTile(

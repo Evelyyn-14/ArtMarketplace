@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'dart:convert';
 import 'dart:typed_data';
+import 'package:http/http.dart' as http;
 import 'login.dart';
 import 'buyerdashboard.dart';
 import 'package:art_marketplace/services/apiService.dart';
@@ -118,6 +119,34 @@ class Buyermarketplace extends StatelessWidget {
       return [...artworks, ...pixabayImages];
     } catch (e) {
       throw Exception('Failed to fetch data: $e');
+    }
+  }
+
+  Future<Map<String, double>?> _fetchCurrencyRates() async {
+    const apiKey = '5baf1a60d46eecfeae37c6c53ce08986'; // Replace with your valid API key
+    const url = 'https://api.currencylayer.com/live?access_key=$apiKey';
+
+    try {
+      final response = await http.get(Uri.parse(url));
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+
+        if (data['success'] == true && data['quotes'] != null) {
+          final quotes = data['quotes'] as Map<String, dynamic>;
+          return quotes.map((key, value) => MapEntry(key.substring(3), value.toDouble()));
+        } else {
+          debugPrint('Currency Layer API Error: ${data['error']['info']}');
+          return null;
+        }
+      } else {
+        debugPrint('Failed to fetch currency rates. Status code: ${response.statusCode}');
+        debugPrint('Response body: ${response.body}');
+        return null;
+      }
+    } catch (e) {
+      debugPrint('Exception occurred while fetching currency rates: $e');
+      return null;
     }
   }
 
@@ -337,7 +366,6 @@ class Buyermarketplace extends StatelessWidget {
     final imageBase64 = artwork['imageBase64'] as String;
     final imageBytes = base64Decode(imageBase64);
     final artPrice = artwork['price']?.toDouble() ?? 0.0;
-    final userId = FirebaseAuth.instance.currentUser!.uid;
 
     showDialog(
       context: context,
@@ -386,6 +414,8 @@ class Buyermarketplace extends StatelessWidget {
           actions: [
             if (artwork['sold'] != true)
               ElevatedButton.icon(
+                onPressed: () {
+                  _purchaseArtwork(context, artwork);
                 onPressed: () async {
                   final userDoc = await FirebaseFirestore.instance.collection('users').doc(userId).get();
                   final buyerBalance = userDoc['balance']?.toDouble() ?? 0.0;
@@ -472,8 +502,7 @@ class Buyermarketplace extends StatelessWidget {
                 },
                 icon: const Icon(Icons.shopping_cart),
                 label: const Text('Buy Now'),
-                style: ElevatedButton.styleFrom(
-                ),
+                style: ElevatedButton.styleFrom(),
               ),
             TextButton(
               onPressed: () async {
@@ -507,5 +536,93 @@ class Buyermarketplace extends StatelessWidget {
         );
       },
     );
+  }
+
+  void _purchaseArtwork(BuildContext context, DocumentSnapshot artwork) async {
+    final userId = FirebaseAuth.instance.currentUser!.uid;
+    final userDoc = await FirebaseFirestore.instance.collection('users').doc(userId).get();
+    final buyerBalance = userDoc['balance']?.toDouble() ?? 0.0;
+
+    final priceInUSD = artwork['price']?.toDouble() ?? 0.0;
+
+    final conversionRates = await _fetchCurrencyRates();
+    if (conversionRates == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Failed to fetch currency rates.')),
+      );
+      return;
+    }
+
+    String selectedCurrency = conversionRates.keys.first;
+    double convertedPrice = priceInUSD * (conversionRates[selectedCurrency] ?? 1.0);
+
+
+   await showDialog(
+  context: context,
+  builder: (context) {
+    return StatefulBuilder(
+      builder: (context, setState) {
+        return AlertDialog(
+          title: const Text('Select Currency'),
+          content: DropdownButtonFormField<String>(
+            value: selectedCurrency,
+            items: conversionRates.keys.map((currency) {
+              return DropdownMenuItem<String>(
+                value: currency,
+                child: Text(currency),
+              );
+            }).toList(),
+            onChanged: (value) {
+              if (value == null) return;
+              setState(() {
+                selectedCurrency = value;
+                convertedPrice =
+                    priceInUSD * (conversionRates[value] ?? 1.0);
+              });
+            },
+          ),
+          actions: [
+            TextButton(
+              child: const Text('Confirm'),
+              onPressed: () => Navigator.of(context).pop(),
+            ),
+          ],
+        );
+      },
+    );
+  },
+);
+
+    if (buyerBalance < convertedPrice) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Insufficient balance.')),
+      );
+      return;
+    }
+
+    // Simulate purchase
+    try {
+      await FirebaseFirestore.instance.collection('users').doc(userId).update({
+        'balance': buyerBalance - convertedPrice,
+      });
+
+      await FirebaseFirestore.instance.collection('artworks').doc(artwork.id).update({
+        'sold': true,
+        'buyerId': userId,
+      });
+
+      final artistId = artwork['artistId'];
+      await FirebaseFirestore.instance.collection('users').doc(artistId).update({
+        'total_sales': FieldValue.increment(1),
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Purchase successful!')),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to complete purchase: $e')),
+      );
+    }
   }
 }
