@@ -175,7 +175,7 @@ class _BuyerDashboardState extends State<BuyerDashboard> {
               onTap: () {
                 Navigator.pushReplacement(
                   context,
-                  MaterialPageRoute(builder: (context) => Buyermarketplace()),
+                  MaterialPageRoute(builder: (context) => BuyerMarketplace()),
                 );
               },
             ),
