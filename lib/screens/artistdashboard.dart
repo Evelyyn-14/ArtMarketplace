@@ -25,6 +25,20 @@ class _ArtistDashboardState extends State<ArtistDashboard> {
   final GlobalKey<ScaffoldState> _menuKey = GlobalKey<ScaffoldState>();
   final FirebaseFirestore firestore = FirebaseFirestore.instance;
 
+  @override
+  void initState() {
+    super.initState();
+    _fetchArtistData();
+  }
+
+  Future<void> _fetchArtistData() async {
+    final artistDoc = await firestore.collection('users').doc(FirebaseAuth.instance.currentUser!.uid).get();
+    setState(() {
+      widget.balance = artistDoc['balance']?.toDouble() ?? 0.0;
+      widget.totalSales = artistDoc['totalSales']?.toDouble() ?? 0.0;
+    });
+  }
+
   Future<void> _withdraw() async {
     final TextEditingController amountController = TextEditingController();
 

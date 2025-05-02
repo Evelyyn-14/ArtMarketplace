@@ -173,7 +173,6 @@ class FavoritesScreen extends StatelessWidget {
     final userId = FirebaseAuth.instance.currentUser!.uid;
 
     if (artwork == null || !artwork.exists) {
-      // Handle missing or invalid artwork
       showDialog(
         context: context,
         builder: (BuildContext context) {
