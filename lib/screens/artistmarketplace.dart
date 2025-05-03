@@ -138,16 +138,11 @@ class ArtistMarketPlace extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Container(
-                  width: MediaQuery.of(context).size.width * 0.8,
+                Image.memory(
+                  imageBytes,
+                  fit: BoxFit.cover,
+                  width: double.infinity,
                   height: 200,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(10),
-                    image: DecorationImage(
-                      image: MemoryImage(imageBytes),
-                      fit: BoxFit.cover,
-                    ),
-                  ),
                 ),
                 const SizedBox(height: 10),
                 Text(
@@ -422,57 +417,72 @@ class ArtistMarketPlace extends StatelessWidget {
                 future: FirebaseFirestore.instance.collection('users').doc(artwork['artistId']).get(),
                 builder: (context, userSnapshot) {
                   if (userSnapshot.connectionState == ConnectionState.waiting) {
-                    return const Center(child: CircularProgressIndicator());
+                    return Center(child: CircularProgressIndicator());
                   }
                   final artistName = userSnapshot.data?['name'] ?? 'Unknown Artist';
 
                   return Card(
-                    margin: const EdgeInsets.all(10),
+                    margin: EdgeInsets.all(10),
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // Ensure the image has proper constraints
-                        Container(
-                          width: 100,
-                          height: 100,
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(10),
-                            image: DecorationImage(
-                              image: MemoryImage(imageBytes),
+                        Stack(
+                          children: [
+                            Image.memory(
+                              imageBytes,
                               fit: BoxFit.cover,
+                              width: 200,
+                              height: 200,
                             ),
-                          ),
+                            if (artwork['sold'] == true)
+                              Positioned(
+                                top: 0,
+                                left: 0,
+                                child: Container(
+                                  color: Colors.red.withOpacity(0.8),
+                                  padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                  child: Text(
+                                    'SOLD',
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 16,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                          ],
                         ),
-                        const SizedBox(width: 10),
+                        SizedBox(width: 10),
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
                                 artwork['title'] ?? 'Untitled',
-                                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                               ),
-                              const SizedBox(height: 5),
+                              SizedBox(height: 5),
                               Text(
                                 artwork['description'] ?? 'No description',
                                 style: TextStyle(fontSize: 14, color: Colors.grey[700]),
                                 maxLines: 2,
                                 overflow: TextOverflow.ellipsis,
                               ),
-                              const SizedBox(height: 5),
+                              SizedBox(height: 5),
                               Text(
                                 'By: $artistName',
                                 style: TextStyle(fontSize: 14, color: Colors.grey[600]),
                               ),
-                              const SizedBox(height: 5),
+                              SizedBox(height: 5),
                               Text(
                                 '\$${artwork['price']?.toStringAsFixed(2) ?? '0.00'}',
-                                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.green),
+                                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.green),
                               ),
-                              const SizedBox(height: 10),
+                              SizedBox(height: 10),
                               ElevatedButton(
                                 onPressed: () => _showArtworkDetails(context, artwork),
-                                child: const Text('View Details'),
+                                child: Text('View Details'),
                               ),
                             ],
                           ),
