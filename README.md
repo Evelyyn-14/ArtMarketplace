@@ -1,16 +1,1 @@
-# art_marketplace
-
-A new Flutter project.
-
-## Getting Started
-
-This project is a starting point for a Flutter application.
-
-A few resources to get you started if this is your first Flutter project:
-
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
-
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+PPT Link: https://www.canva.com/design/DAGmUcI_czo/Z4merSCiI5OlfdW-NGiifA/view?utm_content=DAGmUcI_czo&utm_campaign=designshare&utm_medium=link2&utm_source=uniquelinks&utlId=ha2e77c1997
