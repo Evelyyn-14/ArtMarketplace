@@ -4,7 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'login.dart';
 import 'artistmarketplace.dart';
-import 'chatScreen.dart';
+import 'chatscreen.dart';
 
 class ArtistDashboard extends StatefulWidget {
   String userName;
@@ -143,18 +143,17 @@ class _ArtistDashboardState extends State<ArtistDashboard> {
               leading: const Icon(Icons.chat_bubble),
               title: const Text('Chat'),
               onTap: () {
-                 Navigator.push(
-                   context,
-                   MaterialPageRoute(builder: (context) => ChatScreen()
-                   ),
-                 );
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => ChatScreen()),
+                );
               },
             ),
             ListTile(
               leading: const Icon(Icons.star),
               title: const Text('Favorites'),
               onTap: () {
-                Navigator.pushNamed(context, '/favorites'); 
+                Navigator.pop(context); 
               },
             ),                        
             ListTile(
