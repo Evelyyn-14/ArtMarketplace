@@ -138,11 +138,13 @@ class ArtistMarketPlace extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Image.memory(
-                  imageBytes,
-                  fit: BoxFit.cover,
+                SizedBox(
                   width: double.infinity,
                   height: 200,
+                  child: Image.memory(
+                    imageBytes,
+                    fit: BoxFit.cover,
+                  ),
                 ),
                 const SizedBox(height: 10),
                 Text(

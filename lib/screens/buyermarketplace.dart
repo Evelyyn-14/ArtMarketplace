@@ -369,7 +369,6 @@ return Scaffold(
   }
 
   void _showArtworkDetails(BuildContext context, DocumentSnapshot artwork, String artistName) {
-    // Capture the outer context so it can be used for subsequent dialogs
     final outerContext = context;
     final imageBase64 = artwork['imageBase64'] as String;
     final imageBytes = base64Decode(imageBase64);
@@ -424,7 +423,6 @@ return Scaffold(
               ElevatedButton.icon(
                 onPressed: () async {
                   Navigator.of(dialogContext).pop();
-                  // Use the outer context to show the purchase dialog
                   _purchaseArtwork(outerContext, artwork);
                 },
                 icon: const Icon(Icons.shopping_cart),
@@ -551,9 +549,11 @@ return Scaffold(
       if (artistDoc.exists) {
         final artistBal = (artistDoc['balance'] as num?)?.toDouble() ?? 0.0;
         final artistSales = (artistDoc['total_sales'] as num?)?.toDouble() ?? 0.0;
+        final artistPurchases = (artistDoc['total_purchases'] as num?)?.toInt() ?? 0;
         await FirebaseFirestore.instance.collection('users').doc(artistId).update({
           'balance': artistBal + converted,
           'total_sales': artistSales + converted,
+          'total_purchases': artistPurchases + 1,
         });
       } else {
         throw Exception('Artist document does not exist.');
