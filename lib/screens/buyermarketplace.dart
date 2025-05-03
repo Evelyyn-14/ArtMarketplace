@@ -16,7 +16,7 @@ class BuyerMarketplace extends StatefulWidget {
 
 class _BuyerMarketplaceState extends State<BuyerMarketplace> {
   final GlobalKey<ScaffoldState> _menuKey = GlobalKey<ScaffoldState>();
-  final ApiServices _apiServices = ApiServices();
+  final Apiservices _apiServices = Apiservices();
 
   String _searchQuery = '';
   String _selectedCategory = 'All';
@@ -179,17 +179,24 @@ class _BuyerMarketplaceState extends State<BuyerMarketplace> {
   @override
   Widget build(BuildContext context) {
     final userId = FirebaseAuth.instance.currentUser!.uid;
-
-    return Scaffold(
+return Scaffold(
       key: _menuKey,
       appBar: AppBar(
         automaticallyImplyLeading: false,
-        leading: IconButton(icon: Icon(Icons.menu), onPressed: () => _menuKey.currentState?.openDrawer()),
-        title: Text('MarketPlace', style: GoogleFonts.bebasNeue(fontSize: 30, fontWeight: FontWeight.bold)),
+        leading: IconButton(
+          icon: const Icon(Icons.menu),
+          onPressed: () {
+            _menuKey.currentState?.openDrawer();
+          },
+        ),
         centerTitle: true,
-        actions: [
-          IconButton(icon: Icon(Icons.filter_list), onPressed: () => _showFilterDialog(context)),
-        ],
+        title: Text(
+          'MarketPlace',
+          style: GoogleFonts.bebasNeue(
+            fontSize: 30,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
       ),
       drawer: _buildDrawer(context, userId),
       body: Column(
@@ -361,48 +368,98 @@ class _BuyerMarketplaceState extends State<BuyerMarketplace> {
     );
   }
 
-  void _showArtworkDetails(BuildContext context, DocumentSnapshot art, String artistName) {
-    final data = art.data()! as Map<String, dynamic>;
-    final bytes = base64Decode(data['imageBase64'] as String);
-    final price = (data['price'] as num?)?.toDouble() ?? 0.0;
+  void _showArtworkDetails(BuildContext context, DocumentSnapshot artwork, String artistName) {
+    final imageBase64 = artwork['imageBase64'] as String;
+    final imageBytes = base64Decode(imageBase64);
+    final artPrice = artwork['price']?.toDouble() ?? 0.0;
+    final userId = FirebaseAuth.instance.currentUser!.uid;
 
     showDialog(
       context: context,
-      builder: (_) => AlertDialog(
-        content: SingleChildScrollView(
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Container(
-              width: double.infinity,
-              height: 200,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(10),
-                image: DecorationImage(image: MemoryImage(bytes), fit: BoxFit.cover),
-              ),
+      builder: (BuildContext context) {
+        return AlertDialog(
+          content: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: double.infinity,
+                  height: 200,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(10),
+                    image: DecorationImage(
+                      image: MemoryImage(imageBytes),
+                      fit: BoxFit.cover,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  artwork['title'] ?? 'Untitled',
+                  style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 5),
+                Text(
+                  artwork['description'] ?? 'No description available.',
+                  style: const TextStyle(fontSize: 14),
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  '\$${artPrice.toStringAsFixed(2)}',
+                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.green),
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  'Artist: $artistName',
+                  style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+                ),
+                const SizedBox(height: 10),
+              ],
             ),
-            const SizedBox(height: 10),
-            Text(data['title'] ?? 'Untitled', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 5),
-            Text(data['description'] ?? 'No description available.', style: const TextStyle(fontSize: 14)),
-            const SizedBox(height: 10),
-            Text('\$${price.toStringAsFixed(2)}',
-                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.green)),
-            const SizedBox(height: 10),
-            Text('Artist: $artistName', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
-          ]),
-        ),
-        actions: [
-          if (data['sold'] != true)
+          ),
+          actions: [
+            if (artwork['sold'] != true)
+              ElevatedButton.icon(
+                onPressed: () async {
+                  Navigator.of(context).pop();
+                  _purchaseArtwork(context, artwork);
+                },
+                icon: const Icon(Icons.shopping_cart),
+                label: const Text('Buy Now'),
+              ),
             ElevatedButton.icon(
-              icon: const Icon(Icons.shopping_cart),
-              label: const Text('Buy Now'),
-              onPressed: () {
-                Navigator.of(context).pop();
-                _purchaseArtwork(context, art);
+              icon: const Icon(Icons.chat_bubble),
+              label: const Text('Chat Artist'),
+              onPressed: () async {
+                // Create chat room if it doesn't exist already
+                final chatRoomId = '${userId}_${artwork['artistId']}';
+                final chatRoomRef = FirebaseFirestore.instance.collection('chatRooms').doc(chatRoomId);
+                final chatRoomSnapshot = await chatRoomRef.get();
+                if (!chatRoomSnapshot.exists) {
+                  await chatRoomRef.set({
+                    'participants': [userId, artwork['artistId']],
+                    'emails': {
+                      userId: FirebaseAuth.instance.currentUser!.email,
+                      artwork['artistId']: artistName,
+                    },
+                  });
+                }
+                Navigator.of(context).pop(); // Close the artwork details dialog
+                Navigator.pushNamed(context, '/chat', arguments: {
+                  'chatRoomId': chatRoomId,
+                  'artistName': artistName,
+                  'autoFocus': true,  // This flag can be used in ChatScreen to focus the text field
+                });
               },
             ),
-          TextButton(child: const Text('Close'), onPressed: () => Navigator.of(context).pop()),
-        ],
-      ),
+            TextButton(
+              child: const Text('Close'),
+              onPressed: () => Navigator.of(context).pop(),
+            ),
+          ],
+        );
+      },
     );
   }
 
@@ -449,11 +506,8 @@ class _BuyerMarketplaceState extends State<BuyerMarketplace> {
     }
 
     try {
-      // Deduct balance
       await FirebaseFirestore.instance.collection('users').doc(userId).update({'balance': balance - converted});
-      // Mark sold
       await FirebaseFirestore.instance.collection('artworks').doc(art.id).update({'sold': true, 'buyerId': userId});
-      // Pay artist
       final artistId = data['artistId'];
       final artistDoc = await FirebaseFirestore.instance.collection('users').doc(artistId).get();
       if (artistDoc.exists) {
