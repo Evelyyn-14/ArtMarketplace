@@ -369,14 +369,15 @@ return Scaffold(
   }
 
   void _showArtworkDetails(BuildContext context, DocumentSnapshot artwork, String artistName) {
+    // Capture the outer context so it can be used for subsequent dialogs
+    final outerContext = context;
     final imageBase64 = artwork['imageBase64'] as String;
     final imageBytes = base64Decode(imageBase64);
     final artPrice = artwork['price']?.toDouble() ?? 0.0;
-    final userId = FirebaseAuth.instance.currentUser!.uid;
 
     showDialog(
-      context: context,
-      builder: (BuildContext context) {
+      context: outerContext,
+      builder: (BuildContext dialogContext) {
         return AlertDialog(
           content: SingleChildScrollView(
             child: Column(
@@ -422,8 +423,9 @@ return Scaffold(
             if (artwork['sold'] != true)
               ElevatedButton.icon(
                 onPressed: () async {
-                  Navigator.of(context).pop();
-                  _purchaseArtwork(context, artwork);
+                  Navigator.of(dialogContext).pop();
+                  // Use the outer context to show the purchase dialog
+                  _purchaseArtwork(outerContext, artwork);
                 },
                 icon: const Icon(Icons.shopping_cart),
                 label: const Text('Buy Now'),
@@ -432,7 +434,7 @@ return Scaffold(
               icon: const Icon(Icons.chat_bubble),
               label: const Text('Chat Artist'),
               onPressed: () async {
-                // Create chat room if it doesn't exist already
+                final userId = FirebaseAuth.instance.currentUser!.uid;
                 final chatRoomId = '${userId}_${artwork['artistId']}';
                 final chatRoomRef = FirebaseFirestore.instance.collection('chatRooms').doc(chatRoomId);
                 final chatRoomSnapshot = await chatRoomRef.get();
@@ -445,17 +447,17 @@ return Scaffold(
                     },
                   });
                 }
-                Navigator.of(context).pop(); // Close the artwork details dialog
-                Navigator.pushNamed(context, '/chat', arguments: {
+                Navigator.of(dialogContext).pop();
+                Navigator.pushNamed(outerContext, '/chat', arguments: {
                   'chatRoomId': chatRoomId,
                   'artistName': artistName,
-                  'autoFocus': true,  // This flag can be used in ChatScreen to focus the text field
+                  'autoFocus': true,
                 });
               },
             ),
             TextButton(
               child: const Text('Close'),
-              onPressed: () => Navigator.of(context).pop(),
+              onPressed: () => Navigator.of(dialogContext).pop(),
             ),
           ],
         );
@@ -463,64 +465,109 @@ return Scaffold(
     );
   }
 
-  void _purchaseArtwork(BuildContext context, DocumentSnapshot art) async {
+  Future<void> _purchaseArtwork(BuildContext context, DocumentSnapshot art) async {
+    if (!mounted) return;
     final userId = FirebaseAuth.instance.currentUser!.uid;
     final userDoc = await FirebaseFirestore.instance.collection('users').doc(userId).get();
+    if (!mounted) return;
     double balance = (userDoc['balance'] as num?)?.toDouble() ?? 0.0;
+
     final data = art.data()! as Map<String, dynamic>;
     final usdPrice = (data['price'] as num?)?.toDouble() ?? 0.0;
 
     final rates = await _fetchCurrencyRates();
+    if (!mounted) return;
     if (rates == null) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Failed to fetch currency rates.')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Failed to fetch currency rates.')),
+      );
       return;
     }
 
-    String currency = rates.keys.first;
-    double converted = usdPrice * (rates[currency] ?? 1);
-
-    await showDialog(
+    final result = await showDialog<Map<String, dynamic>>(
       context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setState) => AlertDialog(
-          title: const Text('Select Currency'),
-          content: DropdownButtonFormField<String>(
-            value: currency,
-            items: rates.keys.map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(),
-            onChanged: (v) {
-              if (v == null) return;
-              setState(() {
-                currency = v;
-                converted = usdPrice * (rates[v] ?? 1);
-              });
-            },
-          ),
-          actions: [TextButton(child: const Text('Confirm'), onPressed: () => Navigator.of(ctx).pop())],
-        ),
-      ),
-    );
+      builder: (ctx) {
+        String selectedCurrency = rates.keys.first;
+        double converted = usdPrice * (rates[selectedCurrency] ?? 1);
 
+        return StatefulBuilder(
+          builder: (ctx, setState) {
+            return AlertDialog(
+              title: const Text('Select Currency'),
+              content: DropdownButtonFormField<String>(
+                value: selectedCurrency,
+                items: rates.keys
+                    .map((c) => DropdownMenuItem(value: c, child: Text(c)))
+                    .toList(),
+                onChanged: (v) {
+                  if (v == null) return;
+                  setState(() {
+                    selectedCurrency = v;
+                    converted = usdPrice * (rates[v] ?? 1);
+                  });
+                },
+              ),
+              actions: [
+                TextButton(
+                  child: const Text('Confirm'),
+                  onPressed: () {
+                    Navigator.of(ctx).pop({
+                      'currency': selectedCurrency,
+                      'converted': converted,
+                    });
+                  },
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+    if (!mounted) return;
+    if (result == null) {
+      return;
+    }
+
+    final double converted = result['converted'] as double;
     if (balance < converted) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Insufficient balance.')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Insufficient balance.')),
+      );
       return;
     }
 
     try {
-      await FirebaseFirestore.instance.collection('users').doc(userId).update({'balance': balance - converted});
-      await FirebaseFirestore.instance.collection('artworks').doc(art.id).update({'sold': true, 'buyerId': userId});
+      await FirebaseFirestore.instance.collection('users').doc(userId).update({
+        'balance': balance - converted,
+      });
+      await FirebaseFirestore.instance.collection('artworks').doc(art.id).update({
+        'sold': true,
+        'buyerId': userId,
+      });
+
       final artistId = data['artistId'];
       final artistDoc = await FirebaseFirestore.instance.collection('users').doc(artistId).get();
+      if (!mounted) return;
       if (artistDoc.exists) {
-        final artistBal   = (artistDoc['balance'] as num?)?.toDouble()   ?? 0.0;
+        final artistBal = (artistDoc['balance'] as num?)?.toDouble() ?? 0.0;
         final artistSales = (artistDoc['total_sales'] as num?)?.toDouble() ?? 0.0;
         await FirebaseFirestore.instance.collection('users').doc(artistId).update({
           'balance': artistBal + converted,
           'total_sales': artistSales + converted,
         });
+      } else {
+        throw Exception('Artist document does not exist.');
       }
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Purchase successful!')));
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Purchase successful!')),
+      );
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Purchase failed: $e')));
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Purchase failed: $e')),
+      );
     }
   }
 }
