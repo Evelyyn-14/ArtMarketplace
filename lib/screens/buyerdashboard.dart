@@ -346,11 +346,6 @@ class _BuyerDashboardState extends State<BuyerDashboard> {
                                   overflow: TextOverflow.ellipsis,
                                 ),
                               ),
-                              const SizedBox(width: 10),
-                              ElevatedButton(
-                                onPressed: () {},
-                                child: const Text('Action'),
-                              ),
                               Text(
                                 '\$${(artwork['price'] as num).toStringAsFixed(2)}',
                                 style: const TextStyle(
