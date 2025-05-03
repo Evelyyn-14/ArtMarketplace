@@ -175,7 +175,7 @@ class _BuyerDashboardState extends State<BuyerDashboard> {
               onTap: () {
                 Navigator.pushReplacement(
                   context,
-                  MaterialPageRoute(builder: (context) => Buyermarketplace()),
+                  MaterialPageRoute(builder: (context) => BuyerMarketplace()),
                 );
               },
             ),
@@ -335,13 +335,21 @@ class _BuyerDashboardState extends State<BuyerDashboard> {
                           child: Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              Text(
-                                artwork['title'] ?? 'Untitled',
-                                style: const TextStyle(
-                                  fontSize: 16,
-                                  color: Colors.blue,
-                                  fontWeight: FontWeight.bold,
+                              Expanded(
+                                child: Text(
+                                  artwork['title'] ?? 'Untitled',
+                                  style: const TextStyle(
+                                    fontSize: 16,
+                                    color: Colors.blue,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
                                 ),
+                              ),
+                              const SizedBox(width: 10),
+                              ElevatedButton(
+                                onPressed: () {},
+                                child: const Text('Action'),
                               ),
                               Text(
                                 '\$${(artwork['price'] as num).toStringAsFixed(2)}',
