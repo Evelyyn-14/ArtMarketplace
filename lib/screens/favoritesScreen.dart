@@ -13,26 +13,18 @@ class FavoritesScreen extends StatelessWidget {
       appBar: AppBar(
         centerTitle: true,
         title: Text(
-          'My Collections',
+          'Favorites',
           style: GoogleFonts.bebasNeue(
             fontSize: 30,
             fontWeight: FontWeight.bold,
           ),
         ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.add),
-            onPressed: () {
-              _createCollection(context, userId);
-            },
-          ),
-        ],
       ),
       body: StreamBuilder<QuerySnapshot>(
         stream: FirebaseFirestore.instance
             .collection('users')
             .doc(userId)
-            .collection('collections')
+            .collection('favorites')
             .snapshots(),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
@@ -41,11 +33,11 @@ class FavoritesScreen extends StatelessWidget {
 
           if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
             return const Center(
-              child: Text('No collections yet. Start creating your collections!'),
+              child: Text('No favorites yet. Start adding your favorite artworks!'),
             );
           }
 
-          final collections = snapshot.data!.docs;
+          final favorites = snapshot.data!.docs;
 
           return GridView.builder(
             padding: const EdgeInsets.all(10),
@@ -54,38 +46,124 @@ class FavoritesScreen extends StatelessWidget {
               crossAxisSpacing: 10,
               mainAxisSpacing: 10,
             ),
-            itemCount: collections.length,
+            itemCount: favorites.length,
             itemBuilder: (context, index) {
-              final collection = collections[index];
-              final collectionName = collection['name'];
+              final artwork = favorites[index];
+              final title = artwork['title'] ?? 'Untitled';
+              final imageBase64 = artwork['imageBase64'] ?? '';
+              final imageBytes = imageBase64.isNotEmpty ? base64Decode(imageBase64) : null;
 
-              return GestureDetector(
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => CollectionDetailsScreen(
-                        collectionId: collection.id,
-                        collectionName: collectionName,
-                        userId: userId,
+              return Card(
+                elevation: 5,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: imageBytes != null
+                          ? Image.memory(imageBytes, fit: BoxFit.cover, width: double.infinity)
+                          : const Icon(Icons.image, size: 50, color: Colors.grey),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.all(8.0),
+                      child: Text(
+                        title,
+                        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
-                  );
-                },
-                child: Card(
-                  elevation: 5,
-                  child: Center(
-                    child: Text(
-                      collectionName,
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        IconButton(
+                          icon: const Icon(Icons.more_vert),
+                          onPressed: () {
+                            _showArtworkOptions(context, userId, artwork.id, artwork);
+                          },
+                        ),
+                        StreamBuilder<DocumentSnapshot>(
+                          stream: FirebaseFirestore.instance
+                              .collection('users')
+                              .doc(userId)
+                              .collection('favorites')
+                              .doc(artwork.id)
+                              .snapshots(),
+                          builder: (context, favoriteSnapshot) {
+                            final isFavorite = favoriteSnapshot.data?.exists ?? false;
+
+                            return IconButton(
+                              icon: Icon(
+                                isFavorite ? Icons.favorite : Icons.favorite_border,
+                                color: isFavorite ? Colors.red : Colors.grey,
+                              ),
+                              onPressed: () async {
+                                if (isFavorite) {
+                                  await FirebaseFirestore.instance
+                                      .collection('users')
+                                      .doc(userId)
+                                      .collection('favorites')
+                                      .doc(artwork.id)
+                                      .delete();
+
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(content: Text('Removed from favorites!')),
+                                  );
+                                } else {
+                                  await FirebaseFirestore.instance
+                                      .collection('users')
+                                      .doc(userId)
+                                      .collection('favorites')
+                                      .doc(artwork.id)
+                                      .set({
+                                    'title': artwork['title'],
+                                    'description': artwork['description'],
+                                    'price': artwork['price'],
+                                    'imageBase64': artwork['imageBase64'],
+                                    'artistId': artwork['artistId'],
+                                  });
+
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(content: Text('Added to favorites!')),
+                                  );
+                                }
+                              },
+                            );
+                          },
+                        ),
+                      ],
                     ),
-                  ),
+                  ],
                 ),
               );
             },
           );
         },
+      ),
+    );
+  }
+
+  void _showArtworkOptions(BuildContext context, String userId, String artworkId, DocumentSnapshot artwork) {
+    showModalBottomSheet(
+      context: context,
+      builder: (_) => Wrap(
+        children: [
+          ListTile(
+            leading: const Icon(Icons.add),
+            title: const Text('Create New Collection'),
+            onTap: () {
+              Navigator.of(context).pop();
+              _createCollection(context, userId, artworkId);
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.collections),
+            title: const Text('Add to Existing Collection'),
+            onTap: () {
+              Navigator.of(context).pop();
+              _addToExistingCollection(context, userId, artworkId);
+            },
+          ),
+        ],
       ),
     );
   }
@@ -116,9 +194,37 @@ class FavoritesScreen extends StatelessWidget {
 
     final imageBase64 = artwork['imageBase64'] ?? '';
     final imageBytes = imageBase64.isNotEmpty ? base64Decode(imageBase64) : null;
+
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text(artwork['title'] ?? 'Untitled'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (imageBytes != null)
+                Image.memory(imageBytes, fit: BoxFit.cover, width: double.infinity),
+              const SizedBox(height: 10),
+              Text(artwork['description'] ?? 'No description available.'),
+              const SizedBox(height: 10),
+              Text('Price: \$${artwork['price'] ?? 'N/A'}'),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+              child: const Text('Close'),
+            ),
+          ],
+        );
+      },
+    );
   }
 
-  void _createCollection(BuildContext context, String userId) {
+  void _createCollection(BuildContext context, String userId, String artworkId) {
     final _formKey = GlobalKey<FormState>();
     String? _collectionName;
 
@@ -147,7 +253,7 @@ class FavoritesScreen extends StatelessWidget {
                       .collection('collections')
                       .add({
                     'name': _collectionName,
-                    'artworkIds': [],
+                    'artworkIds': [artworkId],
                   });
 
                   Navigator.of(context).pop();
@@ -167,135 +273,56 @@ class FavoritesScreen extends StatelessWidget {
       },
     );
   }
-}
 
-class CollectionDetailsScreen extends StatelessWidget {
-  final String collectionId;
-  final String collectionName;
-  final String userId;
+  void _addToExistingCollection(BuildContext context, String userId, String artworkId) {
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Add to Collection'),
+        content: StreamBuilder<QuerySnapshot>(
+          stream: FirebaseFirestore.instance
+              .collection('users')
+              .doc(userId)
+              .collection('collections')
+              .snapshots(),
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Center(child: CircularProgressIndicator());
+            }
 
-  CollectionDetailsScreen({
-    required this.collectionId,
-    required this.collectionName,
-    required this.userId,
-  });
+            final collections = snapshot.data?.docs ?? [];
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(collectionName),
-      ),
-      body: StreamBuilder<DocumentSnapshot>(
-        stream: FirebaseFirestore.instance
-            .collection('users')
-            .doc(userId)
-            .collection('collections')
-            .doc(collectionId)
-            .snapshots(),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
+            if (collections.isEmpty) {
+              return const Text('No collections found. Create a new collection first.');
+            }
 
-          if (!snapshot.hasData || !snapshot.data!.exists) {
-            return const Center(
-              child: Text('Collection not found.'),
-            );
-          }
-
-          final collection = snapshot.data!;
-          final artworkIds = List<String>.from(collection['artworkIds'] ?? []);
-
-          if (artworkIds.isEmpty) {
-            return const Center(
-              child: Text('No artworks in this collection.'),
-            );
-          }
-
-          return ListView.builder(
-            itemCount: artworkIds.length,
-            itemBuilder: (context, index) {
-              final artworkId = artworkIds[index];
-
-              return FutureBuilder<DocumentSnapshot>(
-                future: FirebaseFirestore.instance.collection('artworks').doc(artworkId).get(),
-                builder: (context, artworkSnapshot) {
-                  if (artworkSnapshot.connectionState == ConnectionState.waiting) {
-                    return const Center(child: CircularProgressIndicator());
-                  }
-
-                  if (!artworkSnapshot.hasData || !artworkSnapshot.data!.exists) {
-                    return const ListTile(
-                      title: Text('Artwork Not Found'),
-                    );
-                  }
-
-                  final artwork = artworkSnapshot.data!;
-                  final title = artwork['title'] ?? 'Untitled';
-                  final imageBase64 = artwork['imageBase64'] ?? '';
-                  final imageBytes = imageBase64.isNotEmpty ? base64Decode(imageBase64) : null;
-
-                  return StreamBuilder<DocumentSnapshot>(
-                    stream: FirebaseFirestore.instance
+            return ListView.builder(
+              shrinkWrap: true,
+              itemCount: collections.length,
+              itemBuilder: (context, index) {
+                final collection = collections[index];
+                return ListTile(
+                  title: Text(collection['name']),
+                  onTap: () async {
+                    await FirebaseFirestore.instance
                         .collection('users')
                         .doc(userId)
-                        .collection('favorites')
-                        .doc(artworkId)
-                        .snapshots(),
-                    builder: (context, favoriteSnapshot) {
-                      final isFavorite = favoriteSnapshot.data?.exists ?? false;
+                        .collection('collections')
+                        .doc(collection.id)
+                        .update({
+                      'artworkIds': FieldValue.arrayUnion([artworkId]),
+                    });
 
-                      return ListTile(
-                        leading: imageBytes != null
-                            ? Image.memory(imageBytes, width: 50, height: 50, fit: BoxFit.cover)
-                            : const Icon(Icons.image, size: 50, color: Colors.grey),
-                        title: Text(title),
-                        trailing: IconButton(
-                          icon: Icon(
-                            isFavorite ? Icons.favorite : Icons.favorite_border,
-                            color: isFavorite ? Colors.red : Colors.grey,
-                          ),
-                          onPressed: () async {
-                            if (isFavorite) {
-                              await FirebaseFirestore.instance
-                                  .collection('users')
-                                  .doc(userId)
-                                  .collection('favorites')
-                                  .doc(artworkId)
-                                  .delete();
-
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(content: Text('Removed from favorites!')),
-                              );
-                            } else {
-                              await FirebaseFirestore.instance
-                                  .collection('users')
-                                  .doc(userId)
-                                  .collection('favorites')
-                                  .doc(artworkId)
-                                  .set({
-                                'title': artwork['title'],
-                                'description': artwork['description'],
-                                'price': artwork['price'],
-                                'imageBase64': artwork['imageBase64'],
-                                'artistId': artwork['artistId'],
-                              });
-
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(content: Text('Added to favorites!')),
-                              );
-                            }
-                          },
-                        ),
-                      );
-                    },
-                  );
-                },
-              );
-            },
-          );
-        },
+                    Navigator.of(context).pop();
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Added to ${collection['name']}')),
+                    );
+                  },
+                );
+              },
+            );
+          },
+        ),
       ),
     );
   }
